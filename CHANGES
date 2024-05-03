@@ -1,0 +1,41 @@
+# -*- outline-mode -*-
+* revision 1.11 2024-05-03 11:39
+** 重複時につけるディレクトリ名をかぶらないようにした
+"foo.el<document>" 等の重複時につける末尾のディレクトリ名をかぶらないようにした.
+
+今までなら
+"~/document/lisp/foo.el" と "~/document/github/foo/lisp/foo.el" なら
+           ------------                           ------------
+共に "foo.el<lisp>" になってしまっていたが
+"foo.el<document>" と "foo.el<foo>" になる.
+
+buffer name で使われているルーチンを流用しようとしたが
+使い方がよく判らず、buffer名専用ぽくもあるので
+ヘコいルーチンを自作しました.
+
+recentf の場合人によっては3桁くらい取っている人もいるらしいので
+あまりに多いと一瞬モタつくことがあるかもしれません.
+自分は bookmark を主に使っていて
+recentf は一時的に使っているもの専用で
+(setq recentf-max-saved-items 30) とかなり少なめです.
+
+* revision 1.5 2024-04-26 14:39
+** カスタム変数 `recentf-find-file-completing-function'
+補完関数をセット. デフォルトは completing-read.
+ido-completing-read にすることにより ido 補完にできる.
+
+* revision 1.4 2024-04-25 16:58
+** 更新順ソートを廃止
+却って見失う原因だったと今にして思う.
+
+** 同名ファイル異ディレクトリのときは親ディレクトリを鉤括弧でつけ足し回避
+同名ファイルがあると ido で循環しなくなるのに気づいたため.
+
+** その他細かい修正
+
+* revision 1.1 2018-03-15 15:20
+Initial Revision.
+
+
+
+

@@ -3,7 +3,7 @@
 
 ;; Author:   fubuki at frill.org
 ;; Keywords: files
-;; Version:  $Revision: 1.5 $
+;; Version:  $Revision: 1.11 $
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 ;;; Code:
 
 (require 'recentf)
+(require 'cl-lib)
 
 (defcustom recentf-find-file-completing-function 'completing-read
   "Completing function."
@@ -45,34 +46,73 @@
 
 (defvar recentf-alist nil) ; Work Value
 
-(defun recentf-parent-directory (file)
-  (car (last (split-string (file-name-directory file) "/" t))))
-
-(defun recentf-dup-list (lst)
-  "重複して\"いる\"エレメントだけリストで戻す."
-  (let ((lst (sort lst #'string-lessp))
-        result)
-    (while (cdr lst)
-      (if (equal (car lst) (cadr lst))
-          (push (car lst) result))
-      (setq lst (cdr lst)))
-    (seq-uniq result)))
-
 (defun recentf-find-file-make-complete-alist ()
   "更新順に並べ換えた `recentf-list' を補完コマンド用連想リストに再編成."
-  (let* ((lst (seq-uniq (mapcar #'expand-file-name recentf-list))) ;; ~ の整理
-         (col (mapcar #'(lambda (f) (cons (file-name-nondirectory f) f)) lst))
-         (dup (recentf-dup-list (mapcar #'car col)))
+  (let* ((lst (seq-uniq (mapcar #'expand-file-name recentf-list)))) ;; ~ の正規化
+    (setq recentf-alist (recentf-uniq-list lst))))
+
+(defun recentf-equal-all (lst)
+  (cond
+   ((null (cdr lst))
+    t)
+   ((equal (car lst) (cadr lst))
+    (recentf-equal-all (cdr lst)))))
+
+(defun recentf-beginning-uniq-position (lst)
+  "LST の各文字列を末尾からスキャンして不一致になる前のポジションを戻す."
+  (let* ((lst (mapcar #'reverse lst))
+         (len (eval (cons #'min (mapcar #'length lst)))))
+    (catch 'out
+      (dotimes (i len (- i))
+        (if (not (recentf-equal-all (mapcar #'(lambda (a) (aref a i)) lst)))
+            (throw 'out (- i)))))))
+
+(defun recentf-same-collect (lst)
+  "LST からファイル名部分が同じものをグループ化した alist で戻す.
+CAR には共通ファイル名、 CDR はフルパスが続けて入る."
+  (let* ((lst (mapcar
+               #'(lambda (a) (list (file-name-nondirectory a) a)) lst))
+         (alst (mapcar #'list (seq-uniq (mapcar #'car lst))))
+         tmp)
+    (dolist (a lst alst)
+      (setq tmp (assoc (car a) alst)
+            alst (cons (append a (cdr tmp)) (delete tmp alst))))))
+
+(defun recentf-numbering-list (lst)
+  (let ((i 0))
+    (mapcar #'(lambda (a)
+                (prog1
+                    (propertize a 'number i)
+                  (setq i (1+ i))))
+            lst)))
+
+(defun recentf-resort (lst)
+  (sort lst
+        #'(lambda (a b)
+            (< (get-text-property 0 'number (cdr a))
+               (get-text-property 0 'number (cdr b))))))
+        
+(defun recentf-uniq-list (lst)
+  "フルパス名 LST を一意なファイル名をつけたコンスセルにして戻す."
+  (let ((lst (recentf-same-collect (recentf-numbering-list lst)))
+        result)
+    (dolist (a lst)
+      (if (= 1 (length (cdr a)))
+          (push (cons (car a) (cadr a)) result)
+        (setq result (append (recentf--uniq-list a) result))))
+    (recentf-resort result)))
+
+(defun recentf--uniq-list (lst)
+  (let* ((name (car lst))
+         (lst  (cdr lst))
+         (pos (recentf-beginning-uniq-position lst))
          result)
-    (dolist (f col)
-      (if (member (car f) dup)
-          (push (cons
-                 (format
-                  "%s<%s>" (car f) (recentf-parent-directory (cdr f)))
-                 (cdr f))
-                result)
-        (push f result)))
-     (setq recentf-alist (nreverse result))))
+    (dolist (a lst result)
+      (push
+       (cons
+        (format "%s<%s>" name (file-name-nondirectory (substring a 0 pos)))
+        a)
+       result))))
 
 (advice-add 'recentf-track-opened-file :after 'recentf-find-file-make-complete-alist)
 
