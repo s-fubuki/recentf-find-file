@@ -1,4 +1,4 @@
-# -*- outline-mode -*-
+# -*- mode: outline -*-
 * revision 1.11 2024-05-03 11:39
 ** 重複時につけるディレクトリ名をかぶらないようにした
 "foo.el<document>" 等の重複時につける末尾のディレクトリ名をかぶらないようにした.
@@ -35,7 +35,3 @@ ido-completing-read にすることにより ido 補完にできる.
 
 * revision 1.1 2018-03-15 15:20
 Initial Revision.
-
-
-
-
